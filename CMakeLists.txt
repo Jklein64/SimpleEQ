@@ -5,6 +5,8 @@ project(SimpleEQ VERSION 0.0.1)
 # since installed with submodule
 add_subdirectory(juce)
 
+set(FORMATS AU VST3 Standalone)
+
 juce_add_plugin(SimpleEQ
     PLUGIN_MANUFACTURER_CODE Juce
     PLUGIN_CODE SpEQ
@@ -16,13 +18,16 @@ juce_add_plugin(SimpleEQ
     # for debugging 
     COPY_PLUGIN_AFTER_BUILD TRUE
     
-    FORMATS AU VST3 Standalone
+    FORMATS ${FORMATS}
     PRODUCT_NAME "Simple EQ")
 
-target_sources(SimpleEQ
-    PRIVATE
-        PluginEditor.cpp
-        PluginProcessor.cpp)
+set(SourceFiles
+    ./PluginEditor.h
+    ./PluginProcessor.h
+    ./PluginEditor.cpp
+    ./PluginProcessor.cpp)
+
+target_sources(SimpleEQ PRIVATE ${SourceFiles})
 
 target_compile_definitions(SimpleEQ
     PUBLIC
@@ -39,3 +44,24 @@ target_link_libraries(SimpleEQ
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+# No, we don't want our source buried in extra nested folders
+set_target_properties(SimpleEQ PROPERTIES FOLDER "")
+
+# The Xcode source tree should uhhh, still look like the source tree, yo
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/ PREFIX "" FILES ${SourceFiles})
+
+# It tucks the Plugin varieties into a "Targets" folder and generate an Xcode Scheme manually
+# Xcode scheme generation is turned off globally to limit noise from other targets
+# The non-hacky way of doing this is via the global PREDEFINED_TARGETS_FOLDER property
+# However that doesn't seem to be working in Xcode
+# Not all plugin types (au, vst) available on each build type (win, macos, linux)
+foreach (target ${FORMATS} "All")
+    if (TARGET ${PROJECT_NAME}_${target})
+        set_target_properties(${PROJECT_NAME}_${target} PROPERTIES
+            # Tuck the actual plugin targets into a folder where they won't bother us
+            FOLDER "Targets"
+            # Let us build the target in Xcode
+            XCODE_GENERATE_SCHEME ON)
+    endif ()
+endforeach ()
